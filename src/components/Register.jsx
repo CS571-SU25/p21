@@ -7,6 +7,7 @@ function Register({ onLogin }) {
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: ''
   });
@@ -52,6 +53,7 @@ function Register({ onLogin }) {
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
+      phone: formData.phone,
       password: formData.password,
       registeredEvents: [],
       posts: []
@@ -116,6 +118,18 @@ function Register({ onLogin }) {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
+                    required
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label>Phone Number</Form.Label>
+                  <Form.Control
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="(555) 123-4567"
                     required
                   />
                 </Form.Group>

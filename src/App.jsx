@@ -12,7 +12,7 @@ import Register from './components/Register';
 import UserDashboard from './components/UserDashboard';
 import PostsList from './components/PostsList';
 import CreatePost from './components/CreatePost';
-import EventSignup from './components/EventSignup';
+
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);

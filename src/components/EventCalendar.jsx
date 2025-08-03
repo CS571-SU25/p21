@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Button, ButtonGroup } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import EventCard from './EventCard';
-import EventSignup from './EventSignup';
+
+import ConfirmationModal from './ConfirmationModal';
 
 function EventCalendar({ events, onRegister, currentUser }) {
   const [selectedSport, setSelectedSport] = useState('all');
-  const [showSignup, setShowSignup] = useState(false);
+
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const navigate = useNavigate();
 
   const sports = ['all', 'tennis', 'badminton', 'weightlifting', 'pickleball'];
 
@@ -14,16 +18,46 @@ function EventCalendar({ events, onRegister, currentUser }) {
     ? events 
     : events.filter(event => event.sport === selectedSport);
 
-  const handleSignupClick = (event) => {
-    setSelectedEvent(event);
-    setShowSignup(true);
+  // Check if user is already registered for an event
+  const isUserRegistered = (eventId) => {
+    if (!currentUser) return false;
+    const registrations = JSON.parse(sessionStorage.getItem('registrations') || '[]');
+    return registrations.some(reg => reg.eventId === eventId && reg.userId === currentUser.id);
   };
 
-  const handleSignupSubmit = (registrationData) => {
+  const handleSignupClick = (event) => {
+    // If user is not logged in, redirect to register page
+    if (!currentUser) {
+      navigate('/register');
+      return;
+    }
+
+    // Check if user is already registered for this event
+    if (isUserRegistered(event.id)) {
+      alert('You are already registered for this event!');
+      return;
+    }
+
+    setSelectedEvent(event);
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmRegistration = () => {
+    // Create registration data from current user
+    const registrationData = {
+      firstName: currentUser.firstName,
+      lastName: currentUser.lastName,
+      email: currentUser.email,
+      phone: currentUser.phone || '',
+      emergencyContact: ''
+    };
+    
     onRegister(selectedEvent.id, registrationData);
-    setShowSignup(false);
+    setShowConfirmation(false);
     setSelectedEvent(null);
   };
+
+
 
   return (
     <Container>
@@ -58,19 +92,23 @@ function EventCalendar({ events, onRegister, currentUser }) {
               <EventCard 
                 event={event} 
                 onSignupClick={handleSignupClick}
+                currentUser={currentUser}
+                isRegistered={isUserRegistered(event.id)}
               />
             </Col>
           ))
         )}
       </Row>
 
-      <EventSignup
-        show={showSignup}
+      <ConfirmationModal
+        show={showConfirmation}
         event={selectedEvent}
-        onHide={() => setShowSignup(false)}
-        onSubmit={handleSignupSubmit}
         currentUser={currentUser}
+        onHide={() => setShowConfirmation(false)}
+        onConfirm={handleConfirmRegistration}
       />
+
+
     </Container>
   );
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Button, Badge } from 'react-bootstrap';
 
-function EventCard({ event, onSignupClick }) {
+function EventCard({ event, onSignupClick, currentUser, isRegistered }) {
   const getSportColor = (sport) => {
     const colors = {
       tennis: 'success',
@@ -24,6 +24,20 @@ function EventCard({ event, onSignupClick }) {
 
   const isFullyBooked = event.availableSpots === 0;
 
+  const getButtonText = () => {
+    if (isFullyBooked) return "Fully Booked";
+    if (isRegistered) return "Already Registered";
+    if (!currentUser) return "Sign Up";
+    return "Sign Up";
+  };
+
+  const getButtonVariant = () => {
+    if (isFullyBooked) return "secondary";
+    if (isRegistered) return "success";
+    if (!currentUser) return "outline-primary";
+    return "primary";
+  };
+
   return (
     <Card className="h-100">
       <Card.Header className="d-flex justify-content-between align-items-center">
@@ -44,12 +58,12 @@ function EventCard({ event, onSignupClick }) {
             <strong>📍 Location:</strong> {event.location}
           </p>
           <Button 
-            variant={isFullyBooked ? "secondary" : "primary"}
+            variant={getButtonVariant()}
             onClick={() => onSignupClick(event)}
-            disabled={isFullyBooked}
+            disabled={isFullyBooked || isRegistered}
             className="w-100"
           >
-            {isFullyBooked ? "Fully Booked" : "Sign Up"}
+            {getButtonText()}
           </Button>
         </div>
       </Card.Body>
