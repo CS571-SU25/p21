@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Container, Row, Col, Button, ButtonGroup } from 'react-bootstrap';
+import { Container, Row, Col, Button, ButtonGroup, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import EventCard from './EventCard';
-
 import ConfirmationModal from './ConfirmationModal';
+import { safeSessionStorageGet } from '../utils/helpers';
 
 function EventCalendar({ events, onRegister, currentUser }) {
   const [selectedSport, setSelectedSport] = useState('all');
-
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [registrationError, setRegistrationError] = useState('');
   const navigate = useNavigate();
 
   const sports = ['all', 'tennis', 'badminton', 'weightlifting', 'pickleball'];
@@ -21,11 +21,13 @@ function EventCalendar({ events, onRegister, currentUser }) {
   // Check if user is already registered for an event
   const isUserRegistered = (eventId) => {
     if (!currentUser) return false;
-    const registrations = JSON.parse(sessionStorage.getItem('registrations') || '[]');
+    const registrations = safeSessionStorageGet('registrations', []);
     return registrations.some(reg => reg.eventId === eventId && reg.userId === currentUser.id);
   };
 
   const handleSignupClick = (event) => {
+    setRegistrationError('');
+    
     // If user is not logged in, redirect to register page
     if (!currentUser) {
       navigate('/register');
@@ -34,7 +36,13 @@ function EventCalendar({ events, onRegister, currentUser }) {
 
     // Check if user is already registered for this event
     if (isUserRegistered(event.id)) {
-      alert('You are already registered for this event!');
+      setRegistrationError('You are already registered for this event!');
+      return;
+    }
+
+    // Check if event has available spots
+    if (event.availableSpots <= 0) {
+      setRegistrationError('This event is fully booked!');
       return;
     }
 
@@ -52,9 +60,16 @@ function EventCalendar({ events, onRegister, currentUser }) {
       emergencyContact: ''
     };
     
-    onRegister(selectedEvent.id, registrationData);
-    setShowConfirmation(false);
-    setSelectedEvent(null);
+    const success = onRegister(selectedEvent.id, registrationData);
+    
+    if (success) {
+      setShowConfirmation(false);
+      setSelectedEvent(null);
+      setRegistrationError('');
+    } else {
+      setRegistrationError('Registration failed. The event may be full or you may already be registered.');
+      setShowConfirmation(false);
+    }
   };
 
 
@@ -64,6 +79,13 @@ function EventCalendar({ events, onRegister, currentUser }) {
       <Row className="mb-4">
         <Col md={12}>
           <h1 className="text-center mb-4">Upcoming Events</h1>
+          
+          {registrationError && (
+            <Alert variant="warning" dismissible onClose={() => setRegistrationError('')}>
+              {registrationError}
+            </Alert>
+          )}
+          
           <div className="text-center mb-4">
             <ButtonGroup>
               {sports.map(sport => (

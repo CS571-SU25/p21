@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
+import { safeSessionStorageGet, safeSessionStorageSet, verifyPassword } from '../utils/helpers';
 
 function Login({ onLogin }) {
   const [formData, setFormData] = useState({
@@ -8,6 +9,7 @@ function Login({ onLogin }) {
     password: ''
   });
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -20,18 +22,43 @@ function Login({ onLogin }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+    setIsSubmitting(true);
+
+    // Validate input
+    const email = formData.email.trim().toLowerCase();
+    const password = formData.password;
+
+    if (!email || !password) {
+      setError('Please enter both email and password');
+      setIsSubmitting(false);
+      return;
+    }
 
     // Get users from session storage
-    const users = JSON.parse(sessionStorage.getItem('users') || '[]');
-    const user = users.find(u => u.email === formData.email && u.password === formData.password);
+    const users = safeSessionStorageGet('users', []);
+    
+    // Find user by email first
+    const user = users.find(u => u.email === email);
+    
+    if (!user) {
+      setError('Invalid email or password');
+      setIsSubmitting(false);
+      return;
+    }
 
-    if (user) {
+    // Check password - support both old plain text and new hashed passwords
+    const isValidPassword = user.passwordHash 
+      ? verifyPassword(password, user.passwordHash)
+      : user.password === password; // Backward compatibility
+
+    if (isValidPassword) {
       // Store current user in session storage
-      sessionStorage.setItem('currentUser', JSON.stringify(user));
+      safeSessionStorageSet('currentUser', user);
       onLogin(user);
       navigate('/dashboard');
     } else {
       setError('Invalid email or password');
+      setIsSubmitting(false);
     }
   };
 
@@ -68,8 +95,13 @@ function Login({ onLogin }) {
                   />
                 </Form.Group>
 
-                <Button variant="primary" type="submit" className="w-100 mb-3">
-                  Login
+                <Button 
+                  variant="primary" 
+                  type="submit" 
+                  className="w-100 mb-3"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Logging in...' : 'Login'}
                 </Button>
               </Form>
 

@@ -1,17 +1,17 @@
 import React from 'react';
 import { Modal, Button, Alert } from 'react-bootstrap';
+import { safeFormatDate } from '../utils/helpers';
 
 function ConfirmationModal({ show, event, currentUser, onHide, onConfirm }) {
   if (!event) return null;
 
   const formatDate = (dateString) => {
-    const options = { 
+    return safeFormatDate(dateString, {
       weekday: 'short', 
       year: 'numeric', 
       month: 'short', 
-      day: 'numeric' 
-    };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+      day: 'numeric'
+    });
   };
 
   return (

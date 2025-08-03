@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Button, Badge } from 'react-bootstrap';
+import { safeFormatDate } from '../utils/helpers';
 
 function EventCard({ event, onSignupClick, currentUser, isRegistered }) {
   const getSportColor = (sport) => {
@@ -13,13 +14,12 @@ function EventCard({ event, onSignupClick, currentUser, isRegistered }) {
   };
 
   const formatDate = (dateString) => {
-    const options = { 
+    return safeFormatDate(dateString, {
       weekday: 'short', 
       year: 'numeric', 
       month: 'short', 
-      day: 'numeric' 
-    };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+      day: 'numeric'
+    });
   };
 
   const isFullyBooked = event.availableSpots === 0;

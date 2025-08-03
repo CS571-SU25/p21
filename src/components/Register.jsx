@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
+import { safeSessionStorageGet, safeSessionStorageSet, generateUniqueId, hashPassword, createCancellableTimeout } from '../utils/helpers';
 
 function Register({ onLogin }) {
   const [formData, setFormData] = useState({
@@ -13,7 +14,18 @@ function Register({ onLogin }) {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const cancelTimeoutRef = useRef(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (cancelTimeoutRef.current) {
+        cancelTimeoutRef.current();
+      }
+    };
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -26,48 +38,77 @@ function Register({ onLogin }) {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setIsSubmitting(true);
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      setIsSubmitting(false);
       return;
     }
 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError('Please enter a valid email address');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Sanitize input data
+    const sanitizedData = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email.trim().toLowerCase(),
+      phone: formData.phone.trim()
+    };
+
+    // Validate required fields
+    if (!sanitizedData.firstName || !sanitizedData.lastName || !sanitizedData.email) {
+      setError('Please fill in all required fields');
+      setIsSubmitting(false);
       return;
     }
 
     // Get existing users
-    const users = JSON.parse(sessionStorage.getItem('users') || '[]');
+    const users = safeSessionStorageGet('users', []);
     
     // Check if email already exists
-    if (users.find(u => u.email === formData.email)) {
+    if (users.find(u => u.email === sanitizedData.email)) {
       setError('Email already registered');
+      setIsSubmitting(false);
       return;
     }
 
-    // Create new user
+    // Create new user with hashed password
     const newUser = {
-      id: Date.now(),
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
-      password: formData.password,
+      id: generateUniqueId(),
+      firstName: sanitizedData.firstName,
+      lastName: sanitizedData.lastName,
+      email: sanitizedData.email,
+      phone: sanitizedData.phone,
+      passwordHash: hashPassword(formData.password),
       registeredEvents: [],
-      posts: []
+      posts: [],
+      createdAt: new Date().toISOString()
     };
 
     // Save to session storage
     users.push(newUser);
-    sessionStorage.setItem('users', JSON.stringify(users));
-    sessionStorage.setItem('currentUser', JSON.stringify(newUser));
+    safeSessionStorageSet('users', users);
+    safeSessionStorageSet('currentUser', newUser);
 
     setSuccess('Account created successfully!');
     onLogin(newUser);
     
-    setTimeout(() => {
+    // Create cancellable timeout
+    cancelTimeoutRef.current = createCancellableTimeout(() => {
       navigate('/dashboard');
     }, 1500);
   };
@@ -156,8 +197,13 @@ function Register({ onLogin }) {
                   />
                 </Form.Group>
 
-                <Button variant="primary" type="submit" className="w-100 mb-3">
-                  Create Account
+                <Button 
+                  variant="primary" 
+                  type="submit" 
+                  className="w-100 mb-3"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Creating Account...' : 'Create Account'}
                 </Button>
               </Form>
 

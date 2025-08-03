@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Badge, Button, Alert } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { safeSessionStorageGet, safeFormatDate, sanitizeHtml } from '../utils/helpers';
 
 function UserDashboard({ currentUser }) {
   const [userEvents, setUserEvents] = useState([]);
@@ -9,8 +10,8 @@ function UserDashboard({ currentUser }) {
   useEffect(() => {
     if (currentUser) {
       // Get all events and filter user's registrations
-      const allEvents = JSON.parse(sessionStorage.getItem('events') || '[]');
-      const registrations = JSON.parse(sessionStorage.getItem('registrations') || '[]');
+      const allEvents = safeSessionStorageGet('events', []);
+      const registrations = safeSessionStorageGet('registrations', []);
       
       const userRegistrations = registrations.filter(reg => reg.userId === currentUser.id);
       const registeredEvents = allEvents.filter(event => 
@@ -20,7 +21,7 @@ function UserDashboard({ currentUser }) {
       setUserEvents(registeredEvents);
 
       // Get user's posts
-      const allPosts = JSON.parse(sessionStorage.getItem('posts') || '[]');
+      const allPosts = safeSessionStorageGet('posts', []);
       const userSpecificPosts = allPosts.filter(post => post.userId === currentUser.id);
       setUserPosts(userSpecificPosts);
     }
@@ -37,13 +38,12 @@ function UserDashboard({ currentUser }) {
   };
 
   const formatDate = (dateString) => {
-    const options = { 
+    return safeFormatDate(dateString, {
       weekday: 'short', 
       year: 'numeric', 
       month: 'short', 
-      day: 'numeric' 
-    };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+      day: 'numeric'
+    });
   };
 
   if (!currentUser) {
@@ -60,7 +60,7 @@ function UserDashboard({ currentUser }) {
     <Container>
       <Row className="mb-4">
         <Col md={12}>
-          <h1>Welcome back, {currentUser.firstName}!</h1>
+          <h1>Welcome back, <span dangerouslySetInnerHTML={{__html: sanitizeHtml(currentUser.firstName)}}></span>!</h1>
           <p className="text-muted">Here's an overview of your activity at Summit Sports Club</p>
         </Col>
       </Row>
@@ -134,11 +134,12 @@ function UserDashboard({ currentUser }) {
                 <Col md={6} key={post.id} className="mb-3">
                   <Card>
                     <Card.Body>
-                      <Card.Title>{post.title}</Card.Title>
-                      <Card.Text>
-                        {post.content.substring(0, 150)}
-                        {post.content.length > 150 ? '...' : ''}
-                      </Card.Text>
+                      <Card.Title dangerouslySetInnerHTML={{__html: sanitizeHtml(post.title)}}></Card.Title>
+                      <Card.Text
+                        dangerouslySetInnerHTML={{__html: sanitizeHtml(
+                          post.content.substring(0, 150) + (post.content.length > 150 ? '...' : '')
+                        )}}
+                      ></Card.Text>
                       <small className="text-muted">
                         Posted on {formatDate(post.createdAt)}
                       </small>

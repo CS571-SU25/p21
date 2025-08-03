@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
+import { safeSessionStorageGet, safeSessionStorageSet, generateUniqueId, sanitizeHtml, createCancellableTimeout } from '../utils/helpers';
 
 function CreatePost({ currentUser }) {
   const [formData, setFormData] = useState({
@@ -11,6 +12,16 @@ function CreatePost({ currentUser }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const cancelTimeoutRef = useRef(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (cancelTimeoutRef.current) {
+        cancelTimeoutRef.current();
+      }
+    };
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -42,11 +53,15 @@ function CreatePost({ currentUser }) {
       return;
     }
 
-    // Create new post
+    // Sanitize input data
+    const sanitizedTitle = formData.title.trim();
+    const sanitizedContent = formData.content.trim();
+
+    // Create new post with sanitized content
     const newPost = {
-      id: Date.now(),
-      title: formData.title.trim(),
-      content: formData.content.trim(),
+      id: generateUniqueId(),
+      title: sanitizedTitle,
+      content: sanitizedContent,
       category: formData.category,
       authorName: `${currentUser.firstName} ${currentUser.lastName}`,
       userId: currentUser.id,
@@ -54,12 +69,12 @@ function CreatePost({ currentUser }) {
     };
 
     // Save to session storage
-    const existingPosts = JSON.parse(sessionStorage.getItem('posts') || '[]');
+    const existingPosts = safeSessionStorageGet('posts', []);
     existingPosts.push(newPost);
-    sessionStorage.setItem('posts', JSON.stringify(existingPosts));
+    safeSessionStorageSet('posts', existingPosts);
 
-    // Navigate to posts list
-    setTimeout(() => {
+    // Navigate to posts list with cancellable timeout
+    cancelTimeoutRef.current = createCancellableTimeout(() => {
       navigate('/posts');
     }, 1000);
   };
@@ -127,7 +142,7 @@ function CreatePost({ currentUser }) {
                     required
                   />
                   <Form.Text className="text-muted">
-                    {formData.title.length}/100 characters
+                    {formData.title.length}/100 characters {formData.title.length > 100 && '(exceeds limit)'}
                   </Form.Text>
                 </Form.Group>
 
@@ -143,7 +158,7 @@ function CreatePost({ currentUser }) {
                     required
                   />
                   <Form.Text className="text-muted">
-                    {formData.content.length}/1000 characters
+                    {formData.content.length}/1000 characters {formData.content.length > 1000 && '(exceeds limit)'}
                   </Form.Text>
                 </Form.Group>
 
@@ -151,7 +166,7 @@ function CreatePost({ currentUser }) {
                   <Button 
                     variant="success" 
                     type="submit" 
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || formData.title.length > 100 || formData.content.length > 1000}
                   >
                     {isSubmitting ? 'Publishing...' : 'Publish Post'}
                   </Button>

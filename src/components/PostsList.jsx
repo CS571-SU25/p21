@@ -1,28 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Badge } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import { safeSessionStorageGet, safeFormatDate, sanitizeHtml } from '../utils/helpers';
 
 function PostsList({ currentUser }) {
   const [posts, setPosts] = useState([]);
 
   useEffect(() => {
     // Load posts from session storage
-    const storedPosts = JSON.parse(sessionStorage.getItem('posts') || '[]');
+    const storedPosts = safeSessionStorageGet('posts', []);
     // Sort by most recent first
     storedPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     setPosts(storedPosts);
   }, []);
 
   const formatDate = (dateString) => {
-    const options = { 
+    return safeFormatDate(dateString, {
       weekday: 'short', 
       year: 'numeric', 
       month: 'short', 
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+    });
   };
 
   const getCategoryColor = (category) => {
@@ -89,17 +89,19 @@ function PostsList({ currentUser }) {
                     {post.category}
                   </Badge>
                   <small className="text-muted">
-                    by {post.authorName}
+                    by <span dangerouslySetInnerHTML={{__html: sanitizeHtml(post.authorName)}}></span>
                   </small>
                 </Card.Header>
                 <Card.Body className="d-flex flex-column">
-                  <Card.Title>{post.title}</Card.Title>
-                  <Card.Text className="flex-grow-1">
-                    {post.content.length > 200 
-                      ? `${post.content.substring(0, 200)}...` 
-                      : post.content
-                    }
-                  </Card.Text>
+                  <Card.Title dangerouslySetInnerHTML={{__html: sanitizeHtml(post.title)}}></Card.Title>
+                  <Card.Text 
+                    className="flex-grow-1"
+                    dangerouslySetInnerHTML={{__html: sanitizeHtml(
+                      post.content.length > 200 
+                        ? `${post.content.substring(0, 200)}...` 
+                        : post.content
+                    )}}
+                  ></Card.Text>
                   <div className="mt-auto">
                     <small className="text-muted">
                       📅 {formatDate(post.createdAt)}

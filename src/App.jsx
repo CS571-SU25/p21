@@ -12,6 +12,7 @@ import Register from './components/Register';
 import UserDashboard from './components/UserDashboard';
 import PostsList from './components/PostsList';
 import CreatePost from './components/CreatePost';
+import { safeSessionStorageGet, safeSessionStorageSet } from './utils/helpers';
 
 
 function App() {
@@ -67,40 +68,88 @@ function App() {
 
   // Load current user from session storage on app start
   React.useEffect(() => {
-    const storedUser = sessionStorage.getItem('currentUser');
+    // Load current user
+    const storedUser = safeSessionStorageGet('currentUser', null);
     if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
+      setCurrentUser(storedUser);
     }
 
-    // Initialize events in session storage if not exists
-    const storedEvents = sessionStorage.getItem('events');
-    if (!storedEvents) {
-      sessionStorage.setItem('events', JSON.stringify(events));
+    // Load or initialize events
+    const storedEvents = safeSessionStorageGet('events', null);
+    if (storedEvents && storedEvents.length > 0) {
+      setEvents(storedEvents);
+    } else {
+      // Initialize events in session storage
+      safeSessionStorageSet('events', events);
     }
 
     // Load existing registrations
-    const storedRegistrations = sessionStorage.getItem('registrations');
-    if (storedRegistrations) {
-      setRegistrations(JSON.parse(storedRegistrations));
-    }
+    const storedRegistrations = safeSessionStorageGet('registrations', []);
+    setRegistrations(storedRegistrations);
   }, []);
 
+  // Sync events to session storage whenever events state changes
+  React.useEffect(() => {
+    safeSessionStorageSet('events', events);
+  }, [events]);
+
   const handleEventRegistration = (eventId, registrationData) => {
+    // Double-check conditions with latest data from session storage to prevent race conditions
+    const latestRegistrations = safeSessionStorageGet('registrations', []);
+    const latestEvents = safeSessionStorageGet('events', []);
+    
+    // Check if user is already registered 
+    const existingRegistration = latestRegistrations.find(
+      reg => reg.eventId === eventId && reg.userId === currentUser?.id
+    );
+    
+    if (existingRegistration) {
+      console.warn('User already registered for this event');
+      return false;
+    }
+
+    // Check if event exists and has available spots
+    const event = latestEvents.find(e => e.id === eventId);
+    if (!event) {
+      console.warn('Event not found');
+      return false;
+    }
+    
+    if (event.availableSpots <= 0) {
+      console.warn('Event is fully booked');
+      return false;
+    }
+
+    // Validate registration data
+    if (!currentUser?.id || !registrationData.firstName || !registrationData.lastName || !registrationData.email) {
+      console.warn('Invalid registration data');
+      return false;
+    }
+
     const newRegistration = {
       ...registrationData,
       eventId,
-      userId: currentUser?.id,
+      userId: currentUser.id,
       registrationDate: new Date().toISOString()
     };
 
-    const updatedRegistrations = [...registrations, newRegistration];
+    // Atomic update: Update both registrations and events together
+    const updatedRegistrations = [...latestRegistrations, newRegistration];
+    const updatedEvents = latestEvents.map(evt =>
+      evt.id === eventId
+        ? { ...evt, availableSpots: Math.max(0, evt.availableSpots - 1) }
+        : evt
+    );
+
+    // Update session storage first (atomic-like operation)
+    safeSessionStorageSet('registrations', updatedRegistrations);
+    safeSessionStorageSet('events', updatedEvents);
+    
+    // Then update state
     setRegistrations(updatedRegistrations);
-    sessionStorage.setItem('registrations', JSON.stringify(updatedRegistrations));
-    setEvents(events.map(event =>
-      event.id === eventId
-        ? { ...event, availableSpots: event.availableSpots - 1 }
-        : event
-    ));
+    setEvents(updatedEvents);
+    
+    return true;
   };
 
   const handleLogin = (user) => {
