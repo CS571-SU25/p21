@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { Modal, Form, Button, Alert } from 'react-bootstrap';
+import { Link } from 'react-router-dom'; // Added Link import
 
-function EventSignup({ show, event, onHide, onSubmit }) {
+function EventSignup({ show, event, onHide, onSubmit, currentUser }) {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
+    firstName: currentUser?.firstName || '',
+    lastName: currentUser?.lastName || '',
+    email: currentUser?.email || '',
     phone: '',
     emergencyContact: ''
   });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setFormData({
@@ -20,12 +22,19 @@ function EventSignup({ show, event, onHide, onSubmit }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setError('');
+
+    if (!currentUser) {
+      setError('Please log in to register for events');
+      return;
+    }
+
     onSubmit(formData);
     setShowSuccess(true);
     setFormData({
-      firstName: '',
-      lastName: '',
-      email: '',
+      firstName: currentUser?.firstName || '',
+      lastName: currentUser?.lastName || '',
+      email: currentUser?.email || '',
       phone: '',
       emergencyContact: ''
     });
@@ -36,6 +45,18 @@ function EventSignup({ show, event, onHide, onSubmit }) {
       onHide();
     }, 2000);
   };
+
+  // Update form when currentUser changes
+  React.useEffect(() => {
+    if (currentUser) {
+      setFormData(prev => ({
+        ...prev,
+        firstName: currentUser.firstName,
+        lastName: currentUser.lastName,
+        email: currentUser.email
+      }));
+    }
+  }, [currentUser]);
 
   if (!event) return null;
 
@@ -48,6 +69,19 @@ function EventSignup({ show, event, onHide, onSubmit }) {
         {showSuccess && (
           <Alert variant="success">
             Registration successful! You're signed up for {event.title}.
+          </Alert>
+        )}
+        
+        {error && (
+          <Alert variant="danger">
+            {error}
+          </Alert>
+        )}
+
+        {!currentUser && (
+          <Alert variant="warning">
+            You need to be logged in to register for events. 
+            <Link to="/login" className="ms-2">Login here</Link>
           </Alert>
         )}
         
@@ -67,6 +101,7 @@ function EventSignup({ show, event, onHide, onSubmit }) {
               name="firstName"
               value={formData.firstName}
               onChange={handleChange}
+              disabled={!!currentUser}
               required
             />
           </Form.Group>
@@ -78,6 +113,7 @@ function EventSignup({ show, event, onHide, onSubmit }) {
               name="lastName"
               value={formData.lastName}
               onChange={handleChange}
+              disabled={!!currentUser}
               required
             />
           </Form.Group>
@@ -89,6 +125,7 @@ function EventSignup({ show, event, onHide, onSubmit }) {
               name="email"
               value={formData.email}
               onChange={handleChange}
+              disabled={!!currentUser}
               required
             />
           </Form.Group>
@@ -119,7 +156,7 @@ function EventSignup({ show, event, onHide, onSubmit }) {
             <Button variant="secondary" onClick={onHide}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit">
+            <Button variant="primary" type="submit" disabled={!currentUser}>
               Complete Registration
             </Button>
           </div>

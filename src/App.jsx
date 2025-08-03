@@ -1,15 +1,21 @@
 // ==================== App.jsx ====================
-import React, { useState } from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { HashRouter as Router, Routes, Route, } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from './components/Header';
 import Home from './components/Home';
 import EventCalendar from './components/EventCalendar';
 import Contact from './components/Contact';
 import AboutUs from './components/AboutUs';
+import Login from './components/Login';
+import Register from './components/Register';
+import UserDashboard from './components/UserDashboard';
+import PostsList from './components/PostsList';
+import CreatePost from './components/CreatePost';
 import EventSignup from './components/EventSignup';
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(null);
   const [events, setEvents] = useState([
     {
       id: 1,
@@ -59,30 +65,89 @@ function App() {
 
   const [registrations, setRegistrations] = useState([]);
 
+  // Load current user from session storage on app start
+  React.useEffect(() => {
+    const storedUser = sessionStorage.getItem('currentUser');
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    }
+
+    // Initialize events in session storage if not exists
+    const storedEvents = sessionStorage.getItem('events');
+    if (!storedEvents) {
+      sessionStorage.setItem('events', JSON.stringify(events));
+    }
+
+    // Load existing registrations
+    const storedRegistrations = sessionStorage.getItem('registrations');
+    if (storedRegistrations) {
+      setRegistrations(JSON.parse(storedRegistrations));
+    }
+  }, []);
+
   const handleEventRegistration = (eventId, registrationData) => {
-    setRegistrations([...registrations, { eventId, ...registrationData }]);
-    setEvents(events.map(event => 
-      event.id === eventId 
+    const newRegistration = {
+      ...registrationData,
+      eventId,
+      userId: currentUser?.id,
+      registrationDate: new Date().toISOString()
+    };
+
+    const updatedRegistrations = [...registrations, newRegistration];
+    setRegistrations(updatedRegistrations);
+    sessionStorage.setItem('registrations', JSON.stringify(updatedRegistrations));
+    setEvents(events.map(event =>
+      event.id === eventId
         ? { ...event, availableSpots: event.availableSpots - 1 }
         : event
     ));
   };
 
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    sessionStorage.removeItem('currentUser');
+  };
+
   return (
     <Router>
       <div className="app-container">
-        <Header />
+        <Header currentUser={currentUser} onLogout={handleLogout} />
         <div className="main-content">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route 
-              path="/events" 
+            <Route
+              path="/events"
               element={
-                <EventCalendar 
-                  events={events} 
+                <EventCalendar
+                  events={events}
                   onRegister={handleEventRegistration}
+                  currentUser={currentUser}
                 />
-              } 
+              }
+            />
+            <Route
+              path="/login"
+              element={<Login onLogin={handleLogin} />}
+            />
+            <Route
+              path="/register"
+              element={<Register onLogin={handleLogin} />}
+            />
+            <Route
+              path="/dashboard"
+              element={<UserDashboard currentUser={currentUser} />}
+            />
+            <Route
+              path="/posts"
+              element={<PostsList currentUser={currentUser} />}
+            />
+            <Route
+              path="/posts/create"
+              element={<CreatePost currentUser={currentUser} />}
             />
             <Route path="/contact" element={<Contact />} />
             <Route path="/about" element={<AboutUs />} />

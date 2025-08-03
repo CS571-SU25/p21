@@ -3,7 +3,7 @@ import { Container, Row, Col, Button, ButtonGroup } from 'react-bootstrap';
 import EventCard from './EventCard';
 import EventSignup from './EventSignup';
 
-function EventCalendar({ events, onRegister }) {
+function EventCalendar({ events, onRegister, currentUser }) {
   const [selectedSport, setSelectedSport] = useState('all');
   const [showSignup, setShowSignup] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -69,6 +69,7 @@ function EventCalendar({ events, onRegister }) {
         event={selectedEvent}
         onHide={() => setShowSignup(false)}
         onSubmit={handleSignupSubmit}
+        currentUser={currentUser}
       />
     </Container>
   );
